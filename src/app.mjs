@@ -398,6 +398,23 @@ function renderWardCard(day) {
   const personId = ward.assignedIds[0] || "";
   const person = getPerson(state, personId);
   const core = getPeopleByGroup(state, "core");
+  const isClosed = ward.required === 0;
+
+  if (isClosed) {
+    return `
+      <section class="work-card meeting-card card-neutral">
+        <div class="card-topline">
+          <span class="work-type">Ward</span>
+          <span class="status-pill status-neutral">Closed</span>
+        </div>
+        <h3>${escapeHtml(ward.label || "Bank holiday")}</h3>
+        <p class="location">${escapeHtml(state.settings.wardName)}</p>
+        <div class="chip-row">
+          <span class="chip chip-muted">No ward cover required</span>
+        </div>
+      </section>
+    `;
+  }
 
   return `
     <section class="work-card ward-card ${ward.gap ? "card-gap" : "card-ok"}">

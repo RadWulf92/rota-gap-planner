@@ -11,10 +11,12 @@ export const SESSIONS = ["AM", "PM", "All day"];
 export const DEFAULT_STATE = {
   schemaVersion: 1,
   settings: {
-    rotaStart: "2026-04-27",
+    rotaStart: "2026-05-04",
     wardName: "Ward 12",
     wardOrder: ["igor", "daniel", "maria"],
-    viewWeeks: 6
+    viewWeeks: 6,
+    wardScheduleSource: "AO ward Rota up to Sept.xlsx",
+    wardScheduleThrough: "2026-09-04"
   },
   people: [
     {
@@ -136,6 +138,100 @@ export const DEFAULT_STATE = {
     }
   ],
   leave: [],
+  bankHolidays: {
+    "2026-05-04": "Bank holiday",
+    "2026-05-25": "Bank holiday",
+    "2026-08-31": "Bank holiday"
+  },
+  wardSchedule: {
+    "2026-05-05": "daniel",
+    "2026-05-06": "daniel",
+    "2026-05-07": "daniel",
+    "2026-05-08": "daniel",
+    "2026-05-11": "igor",
+    "2026-05-12": "igor",
+    "2026-05-13": "igor",
+    "2026-05-14": "igor",
+    "2026-05-15": "igor",
+    "2026-05-18": "maria",
+    "2026-05-19": "maria",
+    "2026-05-20": "maria",
+    "2026-05-21": "maria",
+    "2026-05-22": "maria",
+    "2026-05-26": "igor",
+    "2026-05-27": "igor",
+    "2026-05-28": "igor",
+    "2026-05-29": "igor",
+    "2026-06-01": "igor",
+    "2026-06-02": "igor",
+    "2026-06-03": "igor",
+    "2026-06-04": "igor",
+    "2026-06-05": "igor",
+    "2026-06-08": "maria",
+    "2026-06-09": "maria",
+    "2026-06-10": "maria",
+    "2026-06-11": "maria",
+    "2026-06-12": "maria",
+    "2026-06-15": "daniel",
+    "2026-06-16": "daniel",
+    "2026-06-17": "daniel",
+    "2026-06-18": "daniel",
+    "2026-06-19": "daniel",
+    "2026-06-22": "daniel",
+    "2026-06-23": "daniel",
+    "2026-06-24": "daniel",
+    "2026-06-25": "daniel",
+    "2026-06-26": "daniel",
+    "2026-06-29": "maria",
+    "2026-06-30": "maria",
+    "2026-07-01": "maria",
+    "2026-07-02": "maria",
+    "2026-07-03": "maria",
+    "2026-07-06": "daniel",
+    "2026-07-07": "daniel",
+    "2026-07-08": "daniel",
+    "2026-07-09": "daniel",
+    "2026-07-10": "daniel",
+    "2026-07-13": "igor",
+    "2026-07-14": "igor",
+    "2026-07-15": "igor",
+    "2026-07-16": "igor",
+    "2026-07-17": "igor",
+    "2026-07-20": "maria",
+    "2026-07-21": "maria",
+    "2026-07-22": "maria",
+    "2026-07-23": "maria",
+    "2026-07-24": "maria",
+    "2026-07-27": "daniel",
+    "2026-07-28": "daniel",
+    "2026-07-29": "daniel",
+    "2026-07-30": "daniel",
+    "2026-07-31": "daniel",
+    "2026-08-03": "igor",
+    "2026-08-04": "igor",
+    "2026-08-05": "igor",
+    "2026-08-06": "igor",
+    "2026-08-07": "igor",
+    "2026-08-10": "maria",
+    "2026-08-11": "maria",
+    "2026-08-12": "maria",
+    "2026-08-13": "maria",
+    "2026-08-14": "maria",
+    "2026-08-17": "daniel",
+    "2026-08-18": "daniel",
+    "2026-08-19": "daniel",
+    "2026-08-20": "daniel",
+    "2026-08-21": "daniel",
+    "2026-08-24": "igor",
+    "2026-08-25": "igor",
+    "2026-08-26": "igor",
+    "2026-08-27": "igor",
+    "2026-08-28": "igor",
+    "2026-09-01": "maria",
+    "2026-09-02": "maria",
+    "2026-09-03": "maria",
+    "2026-09-04": "maria"
+  },
   wardOverrides: {}
 };
 
@@ -158,10 +254,22 @@ export function normalizeState(input) {
       ? input.clinicTemplates
       : base.clinicTemplates,
     leave: Array.isArray(input.leave) ? input.leave : base.leave,
+    bankHolidays: {
+      ...base.bankHolidays,
+      ...(input.bankHolidays && typeof input.bankHolidays === "object" ? input.bankHolidays : {})
+    },
+    wardSchedule: {
+      ...base.wardSchedule,
+      ...(input.wardSchedule && typeof input.wardSchedule === "object" ? input.wardSchedule : {})
+    },
     wardOverrides: input.wardOverrides && typeof input.wardOverrides === "object"
       ? input.wardOverrides
       : base.wardOverrides
   };
+
+  if (input.settings?.rotaStart === "2026-04-27" && !input.wardSchedule) {
+    state.settings.rotaStart = base.settings.rotaStart;
+  }
 
   const seededPeople = new Map(base.people.map((person) => [person.id, person]));
   state.people = state.people.map((person) => {
@@ -277,9 +385,25 @@ export function getLeaveForDate(state, dateISO) {
   return state.leave.filter((leave) => leave.start <= dateISO && leave.end >= dateISO);
 }
 
+export function getBankHolidayLabel(state, dateISO) {
+  return state.bankHolidays?.[dateISO] || null;
+}
+
+export function isBankHoliday(state, dateISO) {
+  return Boolean(getBankHolidayLabel(state, dateISO));
+}
+
 export function getWardPersonId(state, dateISO) {
+  if (isBankHoliday(state, dateISO)) {
+    return null;
+  }
+
   if (state.wardOverrides[dateISO]) {
     return state.wardOverrides[dateISO];
+  }
+
+  if (state.wardSchedule?.[dateISO]) {
+    return state.wardSchedule[dateISO];
   }
 
   const order = state.settings.wardOrder || [];
@@ -294,8 +418,23 @@ export function getWardPersonId(state, dateISO) {
 }
 
 export function getWardCoverage(state, dateISO) {
+  const bankHolidayLabel = getBankHolidayLabel(state, dateISO);
+
+  if (bankHolidayLabel) {
+    return {
+      date: dateISO,
+      type: "ward",
+      required: 0,
+      assignedIds: [],
+      activeIds: [],
+      gap: false,
+      shortBy: 0,
+      label: bankHolidayLabel
+    };
+  }
+
   const personId = getWardPersonId(state, dateISO);
-  const activeIds = personId && !isOnLeave(state, personId, dateISO) ? [personId] : [];
+  const activeIds = personId && getPerson(state, personId) && !isOnLeave(state, personId, dateISO) ? [personId] : [];
   return {
     date: dateISO,
     type: "ward",
@@ -308,6 +447,10 @@ export function getWardCoverage(state, dateISO) {
 }
 
 export function getAutoLungConsultants(state, dateISO) {
+  if (isBankHoliday(state, dateISO)) {
+    return [];
+  }
+
   const wardPersonId = getWardPersonId(state, dateISO);
   return state.people
     .filter((person) => (
@@ -319,6 +462,10 @@ export function getAutoLungConsultants(state, dateISO) {
 }
 
 export function getClinicSessionsForDate(state, dateISO) {
+  if (isBankHoliday(state, dateISO)) {
+    return [];
+  }
+
   const day = getWeekdayIndex(dateISO);
 
   return state.clinicTemplates

@@ -6,7 +6,8 @@ Live app: https://radwulf92.github.io/rota-gap-planner/
 
 ## What it does
 
-- Rotates Igor Randolphe, Daniel Neto, and Maria through Ward 12 by week.
+- Rotates Igor Randulfe, Daniel Neto, and Maria Michaelidou through Ward 12.
+- Uses the dated AO ward rota through early September 2026, including bank holidays.
 - Auto-assigns Igor/Daniel to the lung clinic pattern when they are not on the ward.
 - Tracks Christie, Wythenshawe, MDT, and ward meeting templates.
 - Lets you add annual leave and flags ward or clinic gaps.
