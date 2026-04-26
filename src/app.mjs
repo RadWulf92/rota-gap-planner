@@ -136,24 +136,29 @@ function renderSummary(gaps) {
   const clinicGaps = gaps.filter((gap) => gap.kind === "clinic").length;
   const rangeStart = currentWeek;
   const rangeEnd = addDays(currentWeek, (Number(state.settings.viewWeeks) * 7) - 1);
+  const totalGaps = gaps.length;
 
   return `
     <section class="summary" aria-label="Rota summary">
-      <div class="summary-card ${wardGaps ? "summary-alert" : ""}">
-        <span class="summary-label">Ward gaps</span>
-        <strong>${wardGaps}</strong>
+      <div class="summary-card ${totalGaps ? "summary-alert" : "summary-ok"}">
+        <span class="summary-label">Rota status</span>
+        <strong>${totalGaps ? `${totalGaps} gap${totalGaps === 1 ? "" : "s"}` : "Covered"}</strong>
+        <span>${totalGaps ? "Needs review" : "No gaps found"}</span>
       </div>
       <div class="summary-card ${clinicGaps ? "summary-alert" : ""}">
         <span class="summary-label">Clinic gaps</span>
         <strong>${clinicGaps}</strong>
+        <span>Minimum 2 per clinic</span>
       </div>
       <div class="summary-card">
-        <span class="summary-label">Range checked</span>
+        <span class="summary-label">Ward gaps</span>
+        <strong>${wardGaps}</strong>
+        <span>${escapeHtml(state.settings.wardName)}</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Checked range</span>
         <strong>${escapeHtml(formatRange(rangeStart, rangeEnd))}</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Clinic minimum</span>
-        <strong>2 people</strong>
+        <span>${Number(state.settings.viewWeeks)} week${Number(state.settings.viewWeeks) === 1 ? "" : "s"}</span>
       </div>
     </section>
   `;
@@ -162,7 +167,7 @@ function renderSummary(gaps) {
 function renderToolbar() {
   return `
     <header class="topbar">
-      <div>
+      <div class="topbar-brand">
         <p class="eyebrow">Thoracic rota</p>
         <h1>Rota gap planner</h1>
       </div>
@@ -345,8 +350,17 @@ function renderMainContent(gaps) {
   return `
     <main class="content">
       ${renderSummary(gaps)}
-      <section class="week-board" aria-label="Current week rota">
-        ${week.map((day) => renderDayColumn(day)).join("")}
+      <section class="board-shell">
+        <div class="board-heading">
+          <div>
+            <p class="eyebrow">Week board</p>
+            <h2>${escapeHtml(formatRange(currentWeek, addDays(currentWeek, 4)))}</h2>
+          </div>
+          <span class="board-chip">${escapeHtml(state.settings.wardName)}</span>
+        </div>
+        <div class="week-board" aria-label="Current week rota">
+          ${week.map((day) => renderDayColumn(day)).join("")}
+        </div>
       </section>
       <section class="workspace-grid">
         ${renderGapsPanel(gaps)}
@@ -357,6 +371,7 @@ function renderMainContent(gaps) {
 }
 
 function renderDayColumn(day) {
+  const itemCount = 1 + day.sessions.length;
   return `
     <article class="day-column">
       <div class="day-heading">
@@ -364,7 +379,10 @@ function renderDayColumn(day) {
           <h2>${escapeHtml(day.label)}</h2>
           <span>${escapeHtml(formatDisplayDate(day.date))}</span>
         </div>
-        ${day.leave.length ? `<span class="badge badge-soft">${day.leave.length} away</span>` : ""}
+        <div class="day-badges">
+          <span class="badge badge-soft">${itemCount} item${itemCount === 1 ? "" : "s"}</span>
+          ${day.leave.length ? `<span class="badge badge-away">${day.leave.length} away</span>` : ""}
+        </div>
       </div>
       ${renderWardCard(day)}
       <div class="session-list">
@@ -382,7 +400,7 @@ function renderWardCard(day) {
   const core = getPeopleByGroup(state, "core");
 
   return `
-    <section class="work-card ${ward.gap ? "card-gap" : "card-ok"}">
+    <section class="work-card ward-card ${ward.gap ? "card-gap" : "card-ok"}">
       <div class="card-topline">
         <span class="work-type">Ward</span>
         <span class="status-pill ${ward.gap ? "status-gap" : "status-ok"}">
@@ -417,7 +435,7 @@ function renderSessionCard(session) {
     : "Info";
 
   return `
-    <section class="work-card ${session.gap ? "card-gap" : isClinic ? "card-ok" : "card-neutral"}">
+    <section class="work-card ${isClinic ? "clinic-card" : "meeting-card"} ${session.gap ? "card-gap" : isClinic ? "card-ok" : "card-neutral"}">
       <div class="card-topline">
         <span class="work-type">${escapeHtml(session.session)} ${escapeHtml(session.type)}</span>
         <span class="status-pill ${session.gap ? "status-gap" : isClinic ? "status-ok" : "status-neutral"}">
