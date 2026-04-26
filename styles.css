@@ -744,18 +744,33 @@ label {
 
 .template-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.5fr) minmax(116px, 0.7fr) minmax(84px, 0.5fr) minmax(90px, 0.5fr) 72px minmax(112px, 0.6fr) minmax(170px, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(180px, 0.75fr) minmax(280px, 1.25fr);
+  gap: 10px;
   align-items: start;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px;
+  padding: 12px;
   background: #fbfcfd;
+  overflow: hidden;
 }
 
 .template-main {
   display: grid;
   gap: 6px;
+  min-width: 0;
+}
+
+.template-controls {
+  display: grid;
+  grid-template-columns: minmax(118px, 1fr) minmax(80px, 0.75fr) minmax(96px, 0.8fr) minmax(68px, 0.55fr) minmax(118px, 0.9fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.template-staff {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .plain-input {
@@ -789,6 +804,7 @@ label {
 .template-row select[multiple] {
   min-height: 92px;
   padding: 6px;
+  overflow-x: hidden;
 }
 
 .clinic-form {
@@ -822,6 +838,10 @@ label {
   .template-row,
   .clinic-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .template-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -923,7 +943,9 @@ label {
   }
 
   .slot-controls,
-  .slot-editor-grid {
+  .slot-editor-grid,
+  .template-row,
+  .template-controls {
     grid-template-columns: minmax(0, 1fr);
   }
 

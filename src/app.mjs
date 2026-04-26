@@ -620,29 +620,34 @@ function renderClinicTemplate(clinic) {
         <input class="plain-input" value="${escapeHtml(clinic.name)}" data-clinic-field="${escapeHtml(clinic.id)}:name" aria-label="Clinic name">
         <input class="plain-input subdued-input" value="${escapeHtml(clinic.location)}" data-clinic-field="${escapeHtml(clinic.id)}:location" aria-label="Clinic location">
       </div>
-      <select data-clinic-field="${escapeHtml(clinic.id)}:day">
-        ${WEEKDAYS.map((day) => `
-          <option value="${day.index}" ${Number(clinic.day) === day.index ? "selected" : ""}>${escapeHtml(day.label)}</option>
-        `).join("")}
-      </select>
-      <select data-clinic-field="${escapeHtml(clinic.id)}:session">
-        ${SESSIONS.map((session) => `
-          <option value="${escapeHtml(session)}" ${clinic.session === session ? "selected" : ""}>${escapeHtml(session)}</option>
-        `).join("")}
-      </select>
-      <select data-clinic-field="${escapeHtml(clinic.id)}:type">
-        <option value="clinic" ${clinic.type === "clinic" ? "selected" : ""}>Clinic</option>
-        <option value="meeting" ${clinic.type === "meeting" ? "selected" : ""}>Meeting</option>
-      </select>
-      <input class="number-input" type="number" min="0" max="10" value="${Number(clinic.required || 0)}" data-clinic-field="${escapeHtml(clinic.id)}:required" aria-label="Minimum people">
-      <label class="check-row">
-        <input type="checkbox" data-clinic-field="${escapeHtml(clinic.id)}:includeLungConsultants" ${clinic.includeLungConsultants ? "checked" : ""}>
-        Auto lung
+      <div class="template-controls">
+        <select data-clinic-field="${escapeHtml(clinic.id)}:day" aria-label="Clinic day">
+          ${WEEKDAYS.map((day) => `
+            <option value="${day.index}" ${Number(clinic.day) === day.index ? "selected" : ""}>${escapeHtml(day.label)}</option>
+          `).join("")}
+        </select>
+        <select data-clinic-field="${escapeHtml(clinic.id)}:session" aria-label="Clinic session">
+          ${SESSIONS.map((session) => `
+            <option value="${escapeHtml(session)}" ${clinic.session === session ? "selected" : ""}>${escapeHtml(session)}</option>
+          `).join("")}
+        </select>
+        <select data-clinic-field="${escapeHtml(clinic.id)}:type" aria-label="Clinic type">
+          <option value="clinic" ${clinic.type === "clinic" ? "selected" : ""}>Clinic</option>
+          <option value="meeting" ${clinic.type === "meeting" ? "selected" : ""}>Meeting</option>
+        </select>
+        <input class="number-input" type="number" min="0" max="10" value="${Number(clinic.required || 0)}" data-clinic-field="${escapeHtml(clinic.id)}:required" aria-label="Minimum people">
+        <label class="check-row">
+          <input type="checkbox" data-clinic-field="${escapeHtml(clinic.id)}:includeLungConsultants" ${clinic.includeLungConsultants ? "checked" : ""}>
+          Auto lung
+        </label>
+        <button class="button button-ghost" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove</button>
+      </div>
+      <label class="template-staff">
+        Staff
+        <select multiple size="4" data-clinic-staff="${escapeHtml(clinic.id)}" aria-label="Assigned clinic staff">
+          ${renderMultiPersonOptions(clinic.staffIds || [])}
+        </select>
       </label>
-      <select multiple size="4" data-clinic-staff="${escapeHtml(clinic.id)}" aria-label="Assigned clinic staff">
-        ${renderMultiPersonOptions(clinic.staffIds || [])}
-      </select>
-      <button class="button button-ghost" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove</button>
     </article>
   `;
 }
