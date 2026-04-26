@@ -21,6 +21,19 @@ assert.equal(state.settings.rotaStart, "2026-05-04");
 assert.equal(getWardPersonId(state, "2026-05-04"), null);
 assert.equal(getWardCoverage(state, "2026-05-04").required, 0);
 assert.deepEqual(getClinicSessionsForDate(state, "2026-05-04"), []);
+const openedBankHoliday = normalizeState({
+  ...clone(DEFAULT_STATE),
+  wardSlotOverrides: { "2026-05-04": { status: "open" } },
+  wardOverrides: { "2026-05-04": "igor" }
+});
+assert.equal(getWardPersonId(openedBankHoliday, "2026-05-04"), "igor");
+assert.equal(getWardCoverage(openedBankHoliday, "2026-05-04").required, 1);
+const closedWorkday = normalizeState({
+  ...clone(DEFAULT_STATE),
+  wardSlotOverrides: { "2026-05-05": { status: "closed", label: "Closed" } }
+});
+assert.equal(getWardPersonId(closedWorkday, "2026-05-05"), null);
+assert.equal(getWardCoverage(closedWorkday, "2026-05-05").required, 0);
 assert.equal(getWardPersonId(state, "2026-05-05"), "daniel");
 assert.equal(getWardPersonId(state, "2026-05-11"), "igor");
 assert.equal(getWardPersonId(state, "2026-05-18"), "maria");

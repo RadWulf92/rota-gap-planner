@@ -1,4 +1,4 @@
-const CACHE_NAME = "rota-gap-planner-v4";
+const CACHE_NAME = "rota-gap-planner-v5";
 const APP_SHELL = [
   "./",
   "./index.html",

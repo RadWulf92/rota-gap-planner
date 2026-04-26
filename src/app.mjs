@@ -399,6 +399,16 @@ function renderWardCard(day) {
   const person = getPerson(state, personId);
   const core = getPeopleByGroup(state, "core");
   const isClosed = ward.required === 0;
+  const wardStatus = isClosed ? "closed" : "open";
+  const wardStatusControl = `
+    <label class="mini-select">
+      Status
+      <select data-ward-status="${escapeHtml(day.date)}">
+        <option value="open" ${wardStatus === "open" ? "selected" : ""}>Open</option>
+        <option value="closed" ${wardStatus === "closed" ? "selected" : ""}>Closed</option>
+      </select>
+    </label>
+  `;
 
   if (isClosed) {
     return `
@@ -411,6 +421,9 @@ function renderWardCard(day) {
         <p class="location">${escapeHtml(state.settings.wardName)}</p>
         <div class="chip-row">
           <span class="chip chip-muted">No ward cover required</span>
+        </div>
+        <div class="slot-controls">
+          ${wardStatusControl}
         </div>
       </section>
     `;
@@ -428,17 +441,20 @@ function renderWardCard(day) {
       <div class="chip-row">
         ${person ? renderPersonChip(personId, day.date) : '<span class="chip chip-muted">No ward person</span>'}
       </div>
-      <label class="mini-select">
-        Cover
-        <select data-ward-cover="${escapeHtml(day.date)}">
-          <option value="">Auto cycle</option>
-          ${core.map((corePerson) => `
-            <option value="${escapeHtml(corePerson.id)}" ${state.wardOverrides[day.date] === corePerson.id ? "selected" : ""}>
-              ${escapeHtml(corePerson.name)}
-            </option>
-          `).join("")}
-        </select>
-      </label>
+      <div class="slot-controls">
+        ${wardStatusControl}
+        <label class="mini-select">
+          Cover
+          <select data-ward-cover="${escapeHtml(day.date)}">
+            <option value="">Auto cycle</option>
+            ${core.map((corePerson) => `
+              <option value="${escapeHtml(corePerson.id)}" ${state.wardOverrides[day.date] === corePerson.id ? "selected" : ""}>
+                ${escapeHtml(corePerson.name)}
+              </option>
+            `).join("")}
+          </select>
+        </label>
+      </div>
     </section>
   `;
 }
@@ -469,7 +485,56 @@ function renderSessionCard(session) {
           : '<span class="chip chip-muted">No people assigned</span>'}
       </div>
       ${isClinic ? `<p class="coverage-note">${active} available from ${total} assigned. Minimum ${session.required}.</p>` : ""}
+      ${renderInlineClinicEditor(session)}
     </section>
+  `;
+}
+
+function renderInlineClinicEditor(clinic) {
+  return `
+    <details class="slot-editor">
+      <summary>Edit slot</summary>
+      <div class="slot-editor-grid">
+        <label>
+          Name
+          <input value="${escapeHtml(clinic.name)}" data-clinic-field="${escapeHtml(clinic.id)}:name">
+        </label>
+        <label>
+          Location
+          <input value="${escapeHtml(clinic.location)}" data-clinic-field="${escapeHtml(clinic.id)}:location">
+        </label>
+        <label>
+          Session
+          <select data-clinic-field="${escapeHtml(clinic.id)}:session">
+            ${SESSIONS.map((session) => `
+              <option value="${escapeHtml(session)}" ${clinic.session === session ? "selected" : ""}>${escapeHtml(session)}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>
+          Type
+          <select data-clinic-field="${escapeHtml(clinic.id)}:type">
+            <option value="clinic" ${clinic.type === "clinic" ? "selected" : ""}>Clinic</option>
+            <option value="meeting" ${clinic.type === "meeting" ? "selected" : ""}>Meeting</option>
+          </select>
+        </label>
+        <label>
+          Minimum
+          <input type="number" min="0" max="10" value="${Number(clinic.required || 0)}" data-clinic-field="${escapeHtml(clinic.id)}:required">
+        </label>
+        <label class="check-row">
+          <input type="checkbox" data-clinic-field="${escapeHtml(clinic.id)}:includeLungConsultants" ${clinic.includeLungConsultants ? "checked" : ""}>
+          Auto lung
+        </label>
+        <label class="slot-editor-wide">
+          Staff
+          <select multiple size="4" data-clinic-staff="${escapeHtml(clinic.id)}">
+            ${renderMultiPersonOptions(clinic.staffIds || [])}
+          </select>
+        </label>
+        <button class="button button-ghost slot-editor-remove" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove slot</button>
+      </div>
+    </details>
   `;
 }
 
@@ -763,6 +828,25 @@ function bindEvents() {
   document.querySelectorAll("[data-ward-cover]").forEach((select) => {
     select.addEventListener("change", () => {
       state = setWardOverride(state, select.dataset.wardCover, select.value);
+      saveState();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-ward-status]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const dateISO = select.dataset.wardStatus;
+      state.wardSlotOverrides = state.wardSlotOverrides || {};
+
+      if (select.value === "closed") {
+        state.wardSlotOverrides[dateISO] = { status: "closed", label: "Closed" };
+        delete state.wardOverrides[dateISO];
+      } else if (state.bankHolidays?.[dateISO]) {
+        state.wardSlotOverrides[dateISO] = { status: "open" };
+      } else {
+        delete state.wardSlotOverrides[dateISO];
+      }
+
       saveState();
       render();
     });

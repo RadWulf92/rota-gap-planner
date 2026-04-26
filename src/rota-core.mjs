@@ -232,6 +232,7 @@ export const DEFAULT_STATE = {
     "2026-09-03": "maria",
     "2026-09-04": "maria"
   },
+  wardSlotOverrides: {},
   wardOverrides: {}
 };
 
@@ -262,6 +263,9 @@ export function normalizeState(input) {
       ...base.wardSchedule,
       ...(input.wardSchedule && typeof input.wardSchedule === "object" ? input.wardSchedule : {})
     },
+    wardSlotOverrides: input.wardSlotOverrides && typeof input.wardSlotOverrides === "object"
+      ? input.wardSlotOverrides
+      : base.wardSlotOverrides,
     wardOverrides: input.wardOverrides && typeof input.wardOverrides === "object"
       ? input.wardOverrides
       : base.wardOverrides
@@ -386,6 +390,13 @@ export function getLeaveForDate(state, dateISO) {
 }
 
 export function getBankHolidayLabel(state, dateISO) {
+  const slotOverride = state.wardSlotOverrides?.[dateISO];
+  if (slotOverride?.status === "open") {
+    return null;
+  }
+  if (slotOverride?.status === "closed") {
+    return slotOverride.label || "Closed";
+  }
   return state.bankHolidays?.[dateISO] || null;
 }
 
@@ -394,7 +405,9 @@ export function isBankHoliday(state, dateISO) {
 }
 
 export function getWardPersonId(state, dateISO) {
-  if (isBankHoliday(state, dateISO)) {
+  const slotOverride = state.wardSlotOverrides?.[dateISO];
+
+  if (slotOverride?.status === "closed" || isBankHoliday(state, dateISO)) {
     return null;
   }
 

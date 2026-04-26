@@ -378,7 +378,7 @@ label {
 
 .week-board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  grid-template-columns: repeat(5, minmax(126px, 1fr));
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 2px;
@@ -388,7 +388,7 @@ label {
   display: grid;
   align-content: start;
   gap: 10px;
-  min-width: 180px;
+  min-width: 0;
   padding: 0;
 }
 
@@ -571,6 +571,50 @@ label {
 
 .mini-select {
   margin-top: 4px;
+}
+
+.slot-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  align-items: end;
+  margin-top: 4px;
+}
+
+.slot-controls .mini-select {
+  margin-top: 0;
+}
+
+.slot-editor {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.slot-editor summary {
+  width: fit-content;
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.slot-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.slot-editor-grid input,
+.slot-editor-grid select {
+  min-height: 34px;
+  padding: 7px 8px;
+}
+
+.slot-editor-wide,
+.slot-editor-remove {
+  grid-column: 1 / -1;
 }
 
 .item-list,
@@ -763,6 +807,14 @@ label {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .content {
+    order: 1;
+  }
+
+  .sidebar {
+    order: 2;
+  }
+
   .sidebar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -773,7 +825,32 @@ label {
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 920px) {
+  .app-shell {
+    padding-inline: 16px;
+  }
+
+  .board-shell {
+    padding: 12px;
+  }
+
+  .week-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    overflow-x: hidden;
+  }
+
+  .day-heading,
+  .work-card {
+    padding: 9px;
+  }
+
+  .chip {
+    padding-inline: 7px;
+  }
+}
+
+@media (max-width: 700px) {
   .topbar {
     position: static;
     align-items: stretch;
@@ -843,6 +920,16 @@ label {
 
   .card-topline {
     justify-content: flex-start;
+  }
+
+  .slot-controls,
+  .slot-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .slot-editor-wide,
+  .slot-editor-remove {
+    grid-column: auto;
   }
 }
 
