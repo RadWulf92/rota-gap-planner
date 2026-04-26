@@ -2,6 +2,8 @@
 
 A local rota planner for the Ward 12 rotation and lung clinic cover.
 
+Live app: https://radwulf92.github.io/rota-gap-planner/
+
 ## What it does
 
 - Rotates Igor Randolphe, Daniel Neto, and Maria through Ward 12 by week.
