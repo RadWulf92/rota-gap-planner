@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rota planner">
+  <rect width="512" height="512" rx="96" fill="#0b6f6a"/>
+  <rect x="104" y="116" width="304" height="280" rx="34" fill="#ffffff"/>
+  <path d="M144 184h224" stroke="#d8e0e4" stroke-width="22" stroke-linecap="round"/>
+  <path d="M144 252h224" stroke="#d8e0e4" stroke-width="22" stroke-linecap="round"/>
+  <path d="M144 320h128" stroke="#d8e0e4" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="338" cy="320" r="38" fill="#0b6f6a"/>
+  <path d="m320 320 13 13 28-34" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

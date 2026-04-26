@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import {
+  DEFAULT_STATE,
+  addLeave,
+  buildWeek,
+  clone,
+  findGaps,
+  getAutoLungConsultants,
+  getWardPersonId,
+  normalizeState,
+  setWardOverride
+} from "../src/rota-core.mjs";
+
+const state = normalizeState(clone(DEFAULT_STATE));
+
+assert.equal(state.people.find((person) => person.id === "igor").name, "Igor Randulfe");
+assert.equal(state.people.find((person) => person.id === "maria").name, "Maria Michaelidou");
+assert.equal(getWardPersonId(state, "2026-04-27"), "igor");
+assert.equal(getWardPersonId(state, "2026-05-04"), "daniel");
+assert.equal(getWardPersonId(state, "2026-05-11"), "maria");
+assert.deepEqual(getAutoLungConsultants(state, "2026-04-27"), ["daniel"]);
+assert.deepEqual(getAutoLungConsultants(state, "2026-05-11"), ["igor", "daniel"]);
+
+const week = buildWeek(state, "2026-04-27");
+const monday = week[0];
+assert.equal(monday.ward.assignedIds[0], "igor");
+assert.equal(monday.sessions.some((session) => session.id === "christie-mon-pm"), true);
+
+const withWardLeave = addLeave(state, {
+  id: "leave-igor",
+  personId: "igor",
+  start: "2026-04-27",
+  end: "2026-05-01",
+  reason: "Annual leave"
+});
+const wardGaps = findGaps(withWardLeave, "2026-04-27", 1).filter((gap) => gap.kind === "ward");
+assert.equal(wardGaps.length, 5);
+
+const withCover = setWardOverride(withWardLeave, "2026-04-27", "daniel");
+const mondayGaps = findGaps(withCover, "2026-04-27", 1).filter((gap) => gap.date === "2026-04-27");
+assert.equal(mondayGaps.some((gap) => gap.kind === "ward"), false);
+
+const stretched = clone(state);
+stretched.clinicTemplates = stretched.clinicTemplates.map((clinic) => (
+  clinic.id === "wyth-tue-am"
+    ? { ...clinic, required: 4, staffIds: ["junior-fellow"] }
+    : clinic
+));
+const clinicGaps = findGaps(stretched, "2026-04-27", 1).filter((gap) => gap.kind === "clinic");
+assert.equal(clinicGaps.some((gap) => gap.title === "Wythenshawe clinic"), true);
+
+const removedPersonState = normalizeState({
+  ...clone(DEFAULT_STATE),
+  people: clone(DEFAULT_STATE.people).filter((person) => person.id !== "acp"),
+  clinicTemplates: clone(DEFAULT_STATE.clinicTemplates)
+});
+assert.equal(removedPersonState.people.some((person) => person.id === "acp"), false);
+assert.equal(
+  removedPersonState.clinicTemplates.some((clinic) => (clinic.staffIds || []).includes("acp")),
+  false
+);
+
+console.log("rota-core tests passed");
