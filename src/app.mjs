@@ -122,13 +122,28 @@ function renderPersonOptions(selectedId = "", people = state.people) {
   ].join("");
 }
 
-function renderMultiPersonOptions(selectedIds = []) {
-  const selected = new Set(selectedIds);
-  return state.people.map((person) => `
-    <option value="${escapeHtml(person.id)}" ${selected.has(person.id) ? "selected" : ""}>
-      ${escapeHtml(person.name)} - ${escapeHtml(person.role)}
-    </option>
-  `).join("");
+function renderStaffPicker(clinic, variant = "") {
+  const selected = new Set(clinic.staffIds || []);
+  const classes = ["staff-picker", variant].filter(Boolean).join(" ");
+
+  return `
+    <fieldset class="${classes}">
+      <legend>Staff</legend>
+      <div class="staff-picker-grid">
+        ${state.people.map((person) => `
+          <label class="staff-option ${selected.has(person.id) ? "staff-option-selected" : ""}">
+            <input
+              type="checkbox"
+              data-clinic-staff-toggle="${escapeHtml(clinic.id)}:${escapeHtml(person.id)}"
+              ${selected.has(person.id) ? "checked" : ""}
+            >
+            <span>${escapeHtml(person.name)}</span>
+            <small>${escapeHtml(person.role)}</small>
+          </label>
+        `).join("")}
+      </div>
+    </fieldset>
+  `;
 }
 
 function renderSummary(gaps) {
@@ -526,12 +541,7 @@ function renderInlineClinicEditor(clinic) {
           <input type="checkbox" data-clinic-field="${escapeHtml(clinic.id)}:includeLungConsultants" ${clinic.includeLungConsultants ? "checked" : ""}>
           Auto lung
         </label>
-        <label class="slot-editor-wide">
-          Staff
-          <select multiple size="4" data-clinic-staff="${escapeHtml(clinic.id)}">
-            ${renderMultiPersonOptions(clinic.staffIds || [])}
-          </select>
-        </label>
+        ${renderStaffPicker(clinic, "slot-editor-wide staff-picker-compact")}
         <button class="button button-ghost slot-editor-remove" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove slot</button>
       </div>
     </details>
@@ -642,12 +652,7 @@ function renderClinicTemplate(clinic) {
         </label>
         <button class="button button-ghost" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove</button>
       </div>
-      <label class="template-staff">
-        Staff
-        <select multiple size="4" data-clinic-staff="${escapeHtml(clinic.id)}" aria-label="Assigned clinic staff">
-          ${renderMultiPersonOptions(clinic.staffIds || [])}
-        </select>
-      </label>
+      ${renderStaffPicker(clinic, "template-staff")}
     </article>
   `;
 }
@@ -878,13 +883,21 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-clinic-staff]").forEach((select) => {
-    select.addEventListener("change", () => {
-      const clinic = state.clinicTemplates.find((item) => item.id === select.dataset.clinicStaff);
+  document.querySelectorAll("[data-clinic-staff-toggle]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const [clinicId, personId] = checkbox.dataset.clinicStaffToggle.split(":");
+      const clinic = state.clinicTemplates.find((item) => item.id === clinicId);
       if (!clinic) {
         return;
       }
-      clinic.staffIds = [...select.selectedOptions].map((option) => option.value);
+
+      const selected = new Set(clinic.staffIds || []);
+      if (checkbox.checked) {
+        selected.add(personId);
+      } else {
+        selected.delete(personId);
+      }
+      clinic.staffIds = [...selected];
       saveState();
       render();
     });

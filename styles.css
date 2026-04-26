@@ -617,6 +617,76 @@ label {
   grid-column: 1 / -1;
 }
 
+.staff-picker {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.staff-picker legend {
+  padding: 0 6px;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.staff-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 7px;
+}
+
+.staff-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1px 7px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 8px;
+  color: var(--text);
+  background: #fbfcfd;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.staff-option input {
+  grid-row: span 2;
+  width: 15px;
+  min-height: 15px;
+}
+
+.staff-option span,
+.staff-option small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-option small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.staff-option-selected {
+  border-color: #a8d2cb;
+  background: var(--primary-soft);
+}
+
+.staff-picker-compact {
+  padding: 8px;
+}
+
+.staff-picker-compact .staff-picker-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .item-list,
 .people-groups {
   display: grid;
@@ -801,12 +871,6 @@ label {
   min-height: 16px;
 }
 
-.template-row select[multiple] {
-  min-height: 92px;
-  padding: 6px;
-  overflow-x: hidden;
-}
-
 .clinic-form {
   display: grid;
   grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) 120px 90px 90px 76px minmax(130px, 0.8fr) auto;
@@ -945,7 +1009,8 @@ label {
   .slot-controls,
   .slot-editor-grid,
   .template-row,
-  .template-controls {
+  .template-controls,
+  .staff-picker-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
