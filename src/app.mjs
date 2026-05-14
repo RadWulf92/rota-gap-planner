@@ -1,14 +1,19 @@
 import {
+  BANK_HOLIDAY_REGION_LABEL,
+  BANK_HOLIDAY_SOURCE_URL,
   DEFAULT_STATE,
   SESSIONS,
   WEEKDAYS,
   addDays,
   addLeave,
+  applyBankHolidayFeed,
   buildWeek,
   clone,
   findGaps,
   formatDisplayDate,
   formatRange,
+  getBankHolidayRange,
+  getNextBankHoliday,
   getPeopleByGroup,
   getPerson,
   isOnLeave,
@@ -20,6 +25,7 @@ import {
 } from "./rota-core.mjs";
 
 const STORAGE_KEY = "rota-gap-planner-state-v1";
+const BANK_HOLIDAY_REFRESH_MS = 24 * 60 * 60 * 1000;
 const app = document.querySelector("#app");
 
 let state = loadState();
@@ -36,7 +42,14 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (error) {
+    console.error("Could not save rota planner state", error);
+    alert("The rota could not be saved in this browser. Export a backup before closing the page.");
+    return false;
+  }
 }
 
 function uid(prefix) {
@@ -53,6 +66,31 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function formatFullDate(iso) {
+  if (!iso) {
+    return "Not available";
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(`${iso}T00:00:00`));
+}
+
+function formatDateTime(iso) {
+  if (!iso) {
+    return "Not checked yet";
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(iso));
 }
 
 function roleClass(role) {
@@ -215,6 +253,7 @@ function renderSidebar() {
       ${renderLeavePanel()}
       ${renderPeoplePanel()}
       ${renderSettingsPanel()}
+      ${renderReliabilityPanel()}
     </aside>
   `;
 }
@@ -354,6 +393,52 @@ function renderSettingsPanel() {
           `).join("")}
         </div>
         <button class="button button-light" type="button" id="resetState">Reset starter data</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderReliabilityPanel() {
+  const meta = state.bankHolidayMeta || {};
+  const range = getBankHolidayRange(state);
+  const nextHoliday = getNextBankHoliday(state, todayISO());
+  const sourceStatus = meta.sourceStatus === "live" ? "Live GOV.UK feed" : "Offline fallback";
+  const sourceClass = meta.sourceStatus === "live" ? "status-ok" : "status-neutral";
+
+  return `
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Reliability</h2>
+        <span class="status-pill ${sourceClass}">${escapeHtml(sourceStatus)}</span>
+      </div>
+      <div class="reliability-list">
+        <div class="reliability-row">
+          <span>Manchester calendar</span>
+          <strong>${escapeHtml(meta.regionLabel || BANK_HOLIDAY_REGION_LABEL)}</strong>
+        </div>
+        <div class="reliability-row">
+          <span>Next bank holiday</span>
+          <strong>${nextHoliday ? `${escapeHtml(formatFullDate(nextHoliday.date))} - ${escapeHtml(nextHoliday.title)}` : "None in loaded range"}</strong>
+        </div>
+        <div class="reliability-row">
+          <span>Loaded range</span>
+          <strong>${escapeHtml(formatFullDate(range.firstDate))} to ${escapeHtml(formatFullDate(range.lastDate))}</strong>
+        </div>
+        <div class="reliability-row">
+          <span>Last GOV.UK check</span>
+          <strong>${escapeHtml(formatDateTime(meta.fetchedAt))}</strong>
+        </div>
+      </div>
+      <div class="button-row">
+        <button class="button button-light" type="button" id="refreshBankHolidays">Refresh bank holidays</button>
+        <a class="button button-ghost link-button" href="${BANK_HOLIDAY_SOURCE_URL}" target="_blank" rel="noreferrer">GOV.UK source</a>
+      </div>
+      <div class="button-row">
+        <button class="button button-light" type="button" id="exportBackup">Export backup</button>
+        <label class="button button-light file-button">
+          Import backup
+          <input type="file" id="importBackup" accept="application/json,.json">
+        </label>
       </div>
     </section>
   `;
@@ -657,6 +742,98 @@ function renderClinicTemplate(clinic) {
   `;
 }
 
+function shouldRefreshBankHolidays() {
+  if (state.bankHolidayMeta?.sourceStatus !== "live") {
+    return true;
+  }
+
+  const fetchedAt = Date.parse(state.bankHolidayMeta?.fetchedAt || "");
+  if (!Number.isFinite(fetchedAt)) {
+    return true;
+  }
+
+  return Date.now() - fetchedAt > BANK_HOLIDAY_REFRESH_MS;
+}
+
+async function refreshBankHolidays({ force = false } = {}) {
+  if (!force && !shouldRefreshBankHolidays()) {
+    return;
+  }
+
+  try {
+    const response = await fetch(BANK_HOLIDAY_SOURCE_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`GOV.UK returned ${response.status}`);
+    }
+
+    const feed = await response.json();
+    state = applyBankHolidayFeed(state, feed);
+    saveState();
+  } catch (error) {
+    console.warn("Could not refresh GOV.UK bank holidays", error);
+    state.bankHolidayMeta = {
+      ...(state.bankHolidayMeta || {}),
+      sourceStatus: "fallback",
+      lastErrorAt: new Date().toISOString(),
+      lastError: error.message
+    };
+    saveState();
+  }
+
+  render();
+}
+
+function exportBackup() {
+  const payload = {
+    app: "rota-gap-planner",
+    exportedAt: new Date().toISOString(),
+    state
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `rota-gap-planner-backup-${todayISO()}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("Could not read backup file.")));
+    reader.readAsText(file);
+  });
+}
+
+async function importBackup(file) {
+  try {
+    const text = await readFileAsText(file);
+    const parsed = JSON.parse(text);
+    const importedState = parsed?.state || parsed;
+    const nextState = normalizeState(importedState);
+
+    if (!Array.isArray(nextState.people) || !Array.isArray(nextState.clinicTemplates)) {
+      throw new Error("Backup does not look like a rota planner export.");
+    }
+
+    if (!confirm("Import this backup and replace the rota saved in this browser?")) {
+      return;
+    }
+
+    state = nextState;
+    currentWeek = startOfWeekISO(state.settings.rotaStart || todayISO());
+    saveState();
+    render();
+  } catch (error) {
+    console.error("Could not import backup", error);
+    alert("That backup file could not be imported.");
+  }
+}
+
 function render() {
   const gaps = findGaps(state, currentWeek, Number(state.settings.viewWeeks || 6));
 
@@ -774,6 +951,22 @@ function bindEvents() {
     currentWeek = startOfWeekISO(state.settings.rotaStart || todayISO());
     saveState();
     render();
+  });
+
+  document.querySelector("#refreshBankHolidays").addEventListener("click", () => {
+    refreshBankHolidays({ force: true });
+  });
+
+  document.querySelector("#exportBackup").addEventListener("click", () => {
+    exportBackup();
+  });
+
+  document.querySelector("#importBackup").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) {
+      importBackup(file);
+    }
   });
 
   document.querySelector("#clinicForm").addEventListener("submit", (event) => {
@@ -913,6 +1106,7 @@ function bindEvents() {
 }
 
 render();
+refreshBankHolidays();
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch((error) => {

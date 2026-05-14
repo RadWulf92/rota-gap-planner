@@ -8,6 +8,37 @@ export const WEEKDAYS = [
 
 export const SESSIONS = ["AM", "PM", "All day"];
 
+export const BANK_HOLIDAY_REGION = "england-and-wales";
+export const BANK_HOLIDAY_REGION_LABEL = "England and Wales";
+export const BANK_HOLIDAY_SOURCE_URL = "https://www.gov.uk/bank-holidays.json";
+
+export const FALLBACK_BANK_HOLIDAYS = {
+  "2026-01-01": "New Year's Day",
+  "2026-04-03": "Good Friday",
+  "2026-04-06": "Easter Monday",
+  "2026-05-04": "Early May bank holiday",
+  "2026-05-25": "Spring bank holiday",
+  "2026-08-31": "Summer bank holiday",
+  "2026-12-25": "Christmas Day",
+  "2026-12-28": "Boxing Day",
+  "2027-01-01": "New Year's Day",
+  "2027-03-26": "Good Friday",
+  "2027-03-29": "Easter Monday",
+  "2027-05-03": "Early May bank holiday",
+  "2027-05-31": "Spring bank holiday",
+  "2027-08-30": "Summer bank holiday",
+  "2027-12-27": "Christmas Day",
+  "2027-12-28": "Boxing Day",
+  "2028-01-03": "New Year's Day",
+  "2028-04-14": "Good Friday",
+  "2028-04-17": "Easter Monday",
+  "2028-05-01": "Early May bank holiday",
+  "2028-05-29": "Spring bank holiday",
+  "2028-08-28": "Summer bank holiday",
+  "2028-12-25": "Christmas Day",
+  "2028-12-26": "Boxing Day"
+};
+
 export const DEFAULT_STATE = {
   schemaVersion: 1,
   settings: {
@@ -138,10 +169,16 @@ export const DEFAULT_STATE = {
     }
   ],
   leave: [],
-  bankHolidays: {
-    "2026-05-04": "Bank holiday",
-    "2026-05-25": "Bank holiday",
-    "2026-08-31": "Bank holiday"
+  bankHolidays: { ...FALLBACK_BANK_HOLIDAYS },
+  bankHolidayMeta: {
+    region: BANK_HOLIDAY_REGION,
+    regionLabel: BANK_HOLIDAY_REGION_LABEL,
+    sourceUrl: BANK_HOLIDAY_SOURCE_URL,
+    sourceStatus: "fallback",
+    fetchedAt: null,
+    firstDate: "2026-01-01",
+    lastDate: "2028-12-26",
+    count: Object.keys(FALLBACK_BANK_HOLIDAYS).length
   },
   wardSchedule: {
     "2026-05-05": "daniel",
@@ -259,6 +296,10 @@ export function normalizeState(input) {
       ...base.bankHolidays,
       ...(input.bankHolidays && typeof input.bankHolidays === "object" ? input.bankHolidays : {})
     },
+    bankHolidayMeta: {
+      ...base.bankHolidayMeta,
+      ...(input.bankHolidayMeta && typeof input.bankHolidayMeta === "object" ? input.bankHolidayMeta : {})
+    },
     wardSchedule: {
       ...base.wardSchedule,
       ...(input.wardSchedule && typeof input.wardSchedule === "object" ? input.wardSchedule : {})
@@ -363,6 +404,63 @@ export function formatRange(startISO, endISO) {
     year: "numeric"
   });
   return `${formatter.format(parseISODate(startISO))} to ${formatter.format(parseISODate(endISO))}`;
+}
+
+export function getBankHolidayEntries(state) {
+  return Object.entries(state.bankHolidays || {})
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, title]) => ({ date, title }));
+}
+
+export function getBankHolidayRange(state) {
+  const entries = getBankHolidayEntries(state);
+  return {
+    firstDate: entries[0]?.date || null,
+    lastDate: entries.length ? entries[entries.length - 1].date : null,
+    count: entries.length
+  };
+}
+
+export function getNextBankHoliday(state, fromISO = todayISO()) {
+  return getBankHolidayEntries(state).find((holiday) => holiday.date >= fromISO) || null;
+}
+
+export function extractBankHolidaysFromFeed(feed, region = BANK_HOLIDAY_REGION) {
+  const events = feed?.[region]?.events;
+  if (!Array.isArray(events)) {
+    return null;
+  }
+
+  const holidays = {};
+  for (const event of events) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(event?.date || "")) {
+      continue;
+    }
+    holidays[event.date] = String(event.title || "Bank holiday");
+  }
+
+  return Object.keys(holidays).length ? holidays : null;
+}
+
+export function applyBankHolidayFeed(state, feed, fetchedAt = new Date().toISOString()) {
+  const holidays = extractBankHolidaysFromFeed(feed);
+  if (!holidays) {
+    throw new Error("GOV.UK bank holiday feed did not contain England and Wales events.");
+  }
+
+  const range = getBankHolidayRange({ bankHolidays: holidays });
+  return {
+    ...clone(state),
+    bankHolidays: holidays,
+    bankHolidayMeta: {
+      region: BANK_HOLIDAY_REGION,
+      regionLabel: BANK_HOLIDAY_REGION_LABEL,
+      sourceUrl: BANK_HOLIDAY_SOURCE_URL,
+      sourceStatus: "live",
+      fetchedAt,
+      ...range
+    }
+  };
 }
 
 export function modulo(number, divisor) {

@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_STATE,
   addLeave,
+  applyBankHolidayFeed,
   buildWeek,
   clone,
+  extractBankHolidaysFromFeed,
   findGaps,
   getAutoLungConsultants,
+  getBankHolidayRange,
   getClinicSessionsForDate,
+  getNextBankHoliday,
   getWardCoverage,
   getWardPersonId,
   normalizeState,
@@ -39,8 +43,34 @@ assert.equal(getWardPersonId(state, "2026-05-11"), "igor");
 assert.equal(getWardPersonId(state, "2026-05-18"), "maria");
 assert.equal(getWardPersonId(state, "2026-06-22"), "daniel");
 assert.equal(getWardPersonId(state, "2026-08-31"), null);
+assert.equal(getWardCoverage(state, "2026-12-25").required, 0);
+assert.equal(getWardCoverage(state, "2026-12-28").label, "Boxing Day");
+assert.deepEqual(getClinicSessionsForDate(state, "2027-05-03"), []);
+assert.equal(getNextBankHoliday(state, "2026-05-14").date, "2026-05-25");
+assert.deepEqual(getBankHolidayRange(state), {
+  firstDate: "2026-01-01",
+  lastDate: "2028-12-26",
+  count: 24
+});
 assert.deepEqual(getAutoLungConsultants(state, "2026-05-11"), ["daniel"]);
 assert.deepEqual(getAutoLungConsultants(state, "2026-05-18"), ["igor", "daniel"]);
+
+const bankHolidayFeed = {
+  "england-and-wales": {
+    events: [
+      { date: "2029-01-01", title: "New Year's Day" },
+      { date: "2029-12-25", title: "Christmas Day" }
+    ]
+  }
+};
+assert.deepEqual(extractBankHolidaysFromFeed(bankHolidayFeed), {
+  "2029-01-01": "New Year's Day",
+  "2029-12-25": "Christmas Day"
+});
+const liveBankHolidays = applyBankHolidayFeed(state, bankHolidayFeed, "2026-05-14T12:00:00.000Z");
+assert.equal(liveBankHolidays.bankHolidayMeta.sourceStatus, "live");
+assert.equal(liveBankHolidays.bankHolidayMeta.lastDate, "2029-12-25");
+assert.equal(getWardCoverage(liveBankHolidays, "2029-01-01").required, 0);
 
 const week = buildWeek(state, "2026-05-04");
 const monday = week[0];
