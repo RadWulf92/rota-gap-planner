@@ -322,13 +322,23 @@ export function normalizeState(input) {
     if (!seeded) {
       return person;
     }
-    return {
+
+    const nextPerson = {
       ...person,
-      name: seeded.name,
-      role: seeded.role,
-      group: seeded.group,
-      rotaPattern: seeded.rotaPattern
+      name: person.name || seeded.name,
+      role: person.role || seeded.role,
+      group: person.group || seeded.group,
+      rotaPattern: person.rotaPattern || seeded.rotaPattern
     };
+
+    if (person.id === "igor" && person.name === "Igor Randolphe") {
+      nextPerson.name = "Igor Randulfe";
+    }
+    if (person.id === "maria" && person.name === "Maria") {
+      nextPerson.name = "Maria Michaelidou";
+    }
+
+    return nextPerson;
   });
 
   const coreIds = state.people

@@ -11,6 +11,8 @@ Live app: https://radwulf92.github.io/rota-gap-planner/
 - Uses Manchester-relevant England and Wales bank holidays from the GOV.UK bank-holiday feed, with an offline fallback through 2028.
 - Lets you refresh bank holidays and export/import a JSON backup of the saved rota.
 - Lets you edit ward slot status/cover and clinic slot details from the rota cards.
+- Puts leave, team editing, and clinic editing into prominent management panels.
+- Lets you edit team names, roles, group, and lung clinic auto-assignment as the team changes.
 - Uses contained checkbox-style staff pickers instead of cramped native multi-select boxes.
 - Auto-assigns Igor/Daniel to the lung clinic pattern when they are not on the ward.
 - Tracks Christie, Wythenshawe, MDT, and ward meeting templates.

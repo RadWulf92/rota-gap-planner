@@ -258,11 +258,11 @@ function renderSidebar() {
   `;
 }
 
-function renderLeavePanel() {
+function renderLeavePanel(panelClass = "panel") {
   const sortedLeave = [...state.leave].sort((a, b) => a.start.localeCompare(b.start));
 
   return `
-    <section class="panel">
+    <section class="${panelClass}" id="leavePanel">
       <div class="panel-heading">
         <h2>Add leave</h2>
         <span class="badge">${state.leave.length}</span>
@@ -309,16 +309,35 @@ function renderLeavePanel() {
   `;
 }
 
-function renderPeoplePanel() {
+function renderPeoplePanel(panelClass = "panel") {
   const core = getPeopleByGroup(state, "core");
   const support = getPeopleByGroup(state, "support");
 
   return `
-    <section class="panel">
+    <section class="${panelClass}" id="teamPanel">
       <div class="panel-heading">
-        <h2>People</h2>
+        <h2>Team</h2>
         <span class="badge">${state.people.length}</span>
       </div>
+      <form class="person-add-form" id="personForm">
+        <label>
+          Name
+          <input id="personName" placeholder="Emma Halkyard" maxlength="70" required>
+        </label>
+        <label>
+          Role
+          <input id="personRole" placeholder="ACP, junior fellow, SPR" maxlength="70" required>
+        </label>
+        <label>
+          Group
+          <select id="personGroup">
+            <option value="auto">Use role</option>
+            <option value="support">Clinic team</option>
+            <option value="core">Ward rotation</option>
+          </select>
+        </label>
+        <button class="button button-primary" type="submit">Add person</button>
+      </form>
       <div class="people-groups">
         <div>
           <h3>Ward rotation</h3>
@@ -329,43 +348,47 @@ function renderPeoplePanel() {
           ${support.map((person) => renderPersonRow(person)).join("")}
         </div>
       </div>
-      <form class="stack compact-form" id="personForm">
-        <label>
-          Person
-          <input id="personEntry" placeholder="Emma Halkyard - ACP" maxlength="100" required>
-        </label>
-        <label>
-          Group
-          <select id="personGroup">
-            <option value="auto">Use role</option>
-            <option value="support">Clinic team</option>
-            <option value="core">Ward rotation</option>
-          </select>
-        </label>
-        <button class="button button-light" type="submit">Add person</button>
-      </form>
     </section>
   `;
 }
 
 function renderPersonRow(person) {
   return `
-    <div class="person-row">
+    <article class="person-row person-editor">
       <span class="person-dot role-${roleClass(person.role)}"></span>
-      <div>
-        <strong>${escapeHtml(person.name)}</strong>
-        <span>${escapeHtml(person.role)}</span>
-      </div>
+      <label>
+        Name
+        <input value="${escapeHtml(person.name)}" data-person-field="${escapeHtml(person.id)}:name" maxlength="70">
+      </label>
+      <label>
+        Role
+        <input value="${escapeHtml(person.role)}" data-person-field="${escapeHtml(person.id)}:role" maxlength="70">
+      </label>
+      <label>
+        Group
+        <select data-person-field="${escapeHtml(person.id)}:group">
+          <option value="core" ${person.group === "core" ? "selected" : ""}>Ward rotation</option>
+          <option value="support" ${person.group === "support" ? "selected" : ""}>Clinic team</option>
+        </select>
+      </label>
+      <label>
+        Auto clinics
+        <select data-person-field="${escapeHtml(person.id)}:rotaPattern">
+          <option value="lung" ${person.rotaPattern === "lung" ? "selected" : ""}>Lung</option>
+          <option value="unconfigured" ${person.rotaPattern === "unconfigured" ? "selected" : ""}>None set</option>
+          <option value="none" ${person.rotaPattern === "none" ? "selected" : ""}>No</option>
+        </select>
+      </label>
       <button class="button button-ghost" type="button" data-remove-person="${escapeHtml(person.id)}">Remove</button>
-    </div>
+    </article>
   `;
 }
 
-function renderSettingsPanel() {
+function renderSettingsPanel(panelClass = "panel") {
   const core = getPeopleByGroup(state, "core");
 
   return `
-    <section class="panel">
+    <section class="${panelClass}">
       <div class="panel-heading">
         <h2>Ward cycle</h2>
       </div>
@@ -398,7 +421,7 @@ function renderSettingsPanel() {
   `;
 }
 
-function renderReliabilityPanel() {
+function renderReliabilityPanel(panelClass = "panel") {
   const meta = state.bankHolidayMeta || {};
   const range = getBankHolidayRange(state);
   const nextHoliday = getNextBankHoliday(state, todayISO());
@@ -406,7 +429,7 @@ function renderReliabilityPanel() {
   const sourceClass = meta.sourceStatus === "live" ? "status-ok" : "status-neutral";
 
   return `
-    <section class="panel">
+    <section class="${panelClass}">
       <div class="panel-heading">
         <h2>Reliability</h2>
         <span class="status-pill ${sourceClass}">${escapeHtml(sourceStatus)}</span>
@@ -450,6 +473,11 @@ function renderMainContent(gaps) {
   return `
     <main class="content">
       ${renderSummary(gaps)}
+      <section class="workbench" aria-label="Rota management">
+        ${renderLeavePanel("panel action-panel")}
+        ${renderPeoplePanel("panel action-panel action-panel-team")}
+        ${renderClinicTemplatesPanel("panel action-panel action-panel-clinics")}
+      </section>
       <section class="board-shell">
         <div class="board-heading">
           <div>
@@ -462,9 +490,10 @@ function renderMainContent(gaps) {
           ${week.map((day) => renderDayColumn(day)).join("")}
         </div>
       </section>
-      <section class="workspace-grid">
+      <section class="support-grid">
         ${renderGapsPanel(gaps)}
-        ${renderClinicTemplatesPanel()}
+        ${renderSettingsPanel("panel panel-wide")}
+        ${renderReliabilityPanel("panel panel-wide")}
       </section>
     </main>
   `;
@@ -674,68 +703,132 @@ function renderGapsPanel(gaps) {
   `;
 }
 
-function renderClinicTemplatesPanel() {
+function renderNewClinicStaffPicker() {
   return `
-    <section class="panel panel-wide">
+    <fieldset class="staff-picker clinic-add-staff">
+      <legend>Staff</legend>
+      <div class="staff-picker-grid">
+        ${state.people.map((person) => `
+          <label class="staff-option">
+            <input type="checkbox" name="clinicStaff" value="${escapeHtml(person.id)}">
+            <span>${escapeHtml(person.name)}</span>
+            <small>${escapeHtml(person.role)}</small>
+          </label>
+        `).join("")}
+      </div>
+    </fieldset>
+  `;
+}
+
+function renderClinicTemplatesPanel(panelClass = "panel panel-wide") {
+  return `
+    <section class="${panelClass}" id="clinicPanel">
       <div class="panel-heading">
-        <h2>Clinic templates</h2>
+        <h2>Clinics and meetings</h2>
         <span class="badge">${state.clinicTemplates.length}</span>
       </div>
+      <form class="clinic-form" id="clinicForm">
+        <div class="clinic-form-grid">
+          <label>
+            Name
+            <input id="clinicName" placeholder="Wythenshawe clinic" required>
+          </label>
+          <label>
+            Location
+            <input id="clinicLocation" placeholder="Wythenshawe" required>
+          </label>
+          <label>
+            Day
+            <select id="clinicDay">
+              ${WEEKDAYS.map((day) => `<option value="${day.index}">${escapeHtml(day.label)}</option>`).join("")}
+            </select>
+          </label>
+          <label>
+            Session
+            <select id="clinicSession">
+              ${SESSIONS.map((session) => `<option>${escapeHtml(session)}</option>`).join("")}
+            </select>
+          </label>
+          <label>
+            Type
+            <select id="clinicType">
+              <option value="clinic">Clinic</option>
+              <option value="meeting">Meeting</option>
+            </select>
+          </label>
+          <label>
+            Minimum
+            <input id="clinicRequired" type="number" min="0" max="10" value="2">
+          </label>
+          <label class="check-row">
+            <input id="clinicAutoLung" type="checkbox" checked>
+            Auto lung
+          </label>
+        </div>
+        ${renderNewClinicStaffPicker()}
+        <button class="button button-primary clinic-submit" type="submit">Add clinic or meeting</button>
+      </form>
       <div class="template-list">
         ${state.clinicTemplates.map((clinic) => renderClinicTemplate(clinic)).join("")}
       </div>
-      <form class="clinic-form" id="clinicForm">
-        <input id="clinicName" placeholder="Clinic or meeting name" required>
-        <input id="clinicLocation" placeholder="Location" required>
-        <select id="clinicDay">
-          ${WEEKDAYS.map((day) => `<option value="${day.index}">${escapeHtml(day.label)}</option>`).join("")}
-        </select>
-        <select id="clinicSession">
-          ${SESSIONS.map((session) => `<option>${escapeHtml(session)}</option>`).join("")}
-        </select>
-        <select id="clinicType">
-          <option value="clinic">Clinic</option>
-          <option value="meeting">Meeting</option>
-        </select>
-        <input id="clinicRequired" type="number" min="0" max="10" value="2" aria-label="Minimum people">
-        <label class="check-row">
-          <input id="clinicAutoLung" type="checkbox" checked>
-          Auto lung consultants
-        </label>
-        <button class="button button-light" type="submit">Add template</button>
-      </form>
     </section>
   `;
 }
 
 function renderClinicTemplate(clinic) {
+  const weekday = WEEKDAYS.find((day) => day.index === Number(clinic.day))?.label || "Weekday";
+
   return `
     <article class="template-row">
+      <div class="template-header">
+        <div>
+          <h3>${escapeHtml(clinic.name)}</h3>
+          <span>${escapeHtml(weekday)} ${escapeHtml(clinic.session)} - ${escapeHtml(clinic.location)}</span>
+        </div>
+        <button class="button button-ghost" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove</button>
+      </div>
       <div class="template-main">
-        <input class="plain-input" value="${escapeHtml(clinic.name)}" data-clinic-field="${escapeHtml(clinic.id)}:name" aria-label="Clinic name">
-        <input class="plain-input subdued-input" value="${escapeHtml(clinic.location)}" data-clinic-field="${escapeHtml(clinic.id)}:location" aria-label="Clinic location">
+        <label>
+          Name
+          <input class="plain-input" value="${escapeHtml(clinic.name)}" data-clinic-field="${escapeHtml(clinic.id)}:name" aria-label="Clinic name">
+        </label>
+        <label>
+          Location
+          <input class="plain-input subdued-input" value="${escapeHtml(clinic.location)}" data-clinic-field="${escapeHtml(clinic.id)}:location" aria-label="Clinic location">
+        </label>
       </div>
       <div class="template-controls">
-        <select data-clinic-field="${escapeHtml(clinic.id)}:day" aria-label="Clinic day">
-          ${WEEKDAYS.map((day) => `
-            <option value="${day.index}" ${Number(clinic.day) === day.index ? "selected" : ""}>${escapeHtml(day.label)}</option>
-          `).join("")}
-        </select>
-        <select data-clinic-field="${escapeHtml(clinic.id)}:session" aria-label="Clinic session">
-          ${SESSIONS.map((session) => `
-            <option value="${escapeHtml(session)}" ${clinic.session === session ? "selected" : ""}>${escapeHtml(session)}</option>
-          `).join("")}
-        </select>
-        <select data-clinic-field="${escapeHtml(clinic.id)}:type" aria-label="Clinic type">
-          <option value="clinic" ${clinic.type === "clinic" ? "selected" : ""}>Clinic</option>
-          <option value="meeting" ${clinic.type === "meeting" ? "selected" : ""}>Meeting</option>
-        </select>
-        <input class="number-input" type="number" min="0" max="10" value="${Number(clinic.required || 0)}" data-clinic-field="${escapeHtml(clinic.id)}:required" aria-label="Minimum people">
+        <label>
+          Day
+          <select data-clinic-field="${escapeHtml(clinic.id)}:day" aria-label="Clinic day">
+            ${WEEKDAYS.map((day) => `
+              <option value="${day.index}" ${Number(clinic.day) === day.index ? "selected" : ""}>${escapeHtml(day.label)}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>
+          Session
+          <select data-clinic-field="${escapeHtml(clinic.id)}:session" aria-label="Clinic session">
+            ${SESSIONS.map((session) => `
+              <option value="${escapeHtml(session)}" ${clinic.session === session ? "selected" : ""}>${escapeHtml(session)}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>
+          Type
+          <select data-clinic-field="${escapeHtml(clinic.id)}:type" aria-label="Clinic type">
+            <option value="clinic" ${clinic.type === "clinic" ? "selected" : ""}>Clinic</option>
+            <option value="meeting" ${clinic.type === "meeting" ? "selected" : ""}>Meeting</option>
+          </select>
+        </label>
+        <label>
+          Minimum
+          <input class="number-input" type="number" min="0" max="10" value="${Number(clinic.required || 0)}" data-clinic-field="${escapeHtml(clinic.id)}:required" aria-label="Minimum people">
+        </label>
         <label class="check-row">
           <input type="checkbox" data-clinic-field="${escapeHtml(clinic.id)}:includeLungConsultants" ${clinic.includeLungConsultants ? "checked" : ""}>
           Auto lung
         </label>
-        <button class="button button-ghost" type="button" data-remove-clinic="${escapeHtml(clinic.id)}">Remove</button>
       </div>
       ${renderStaffPicker(clinic, "template-staff")}
     </article>
@@ -834,13 +927,67 @@ async function importBackup(file) {
   }
 }
 
+function removePersonFromAssignments(personId) {
+  state.leave = state.leave.filter((leave) => leave.personId !== personId);
+  state.settings.wardOrder = state.settings.wardOrder.filter((id) => id !== personId);
+  Object.entries(state.wardOverrides).forEach(([date, id]) => {
+    if (id === personId) {
+      delete state.wardOverrides[date];
+    }
+  });
+  state.clinicTemplates = state.clinicTemplates.map((clinic) => ({
+    ...clinic,
+    staffIds: (clinic.staffIds || []).filter((id) => id !== personId)
+  }));
+}
+
+function updatePerson(personId, field, value) {
+  const person = getPerson(state, personId);
+  if (!person) {
+    return;
+  }
+
+  if (field === "group") {
+    const coreCount = getPeopleByGroup(state, "core").length;
+    if (person.group === "core" && value !== "core" && coreCount <= 1) {
+      alert("Keep at least one person in the ward rotation.");
+      render();
+      return;
+    }
+
+    person.group = value;
+    if (value === "core") {
+      if (!state.settings.wardOrder.includes(personId)) {
+        state.settings.wardOrder.push(personId);
+      }
+      if (person.rotaPattern === "none") {
+        person.rotaPattern = "unconfigured";
+      }
+    } else {
+      state.settings.wardOrder = state.settings.wardOrder.filter((id) => id !== personId);
+      Object.entries(state.wardOverrides).forEach(([date, id]) => {
+        if (id === personId) {
+          delete state.wardOverrides[date];
+        }
+      });
+      person.rotaPattern = "none";
+    }
+  } else if (field === "name" || field === "role") {
+    person[field] = value.trim() || person[field];
+  } else if (field === "rotaPattern") {
+    person.rotaPattern = value;
+  }
+
+  saveState();
+  render();
+}
+
 function render() {
   const gaps = findGaps(state, currentWeek, Number(state.settings.viewWeeks || 6));
 
   app.innerHTML = `
     ${renderToolbar()}
     <div class="app-shell">
-      ${renderSidebar()}
       ${renderMainContent(gaps)}
     </div>
   `;
@@ -904,12 +1051,12 @@ function bindEvents() {
 
   document.querySelector("#personForm").addEventListener("submit", (event) => {
     event.preventDefault();
-    const entryInput = document.querySelector("#personEntry");
+    const name = document.querySelector("#personName").value.trim();
+    const role = document.querySelector("#personRole").value.trim();
     const groupValue = document.querySelector("#personGroup").value;
-    const { name, role } = parsePersonEntry(entryInput.value);
 
     if (!name || !role) {
-      alert("Use the format: Name - role");
+      alert("Add both a name and a role.");
       return;
     }
 
@@ -971,6 +1118,8 @@ function bindEvents() {
 
   document.querySelector("#clinicForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    const staffIds = [...document.querySelectorAll('input[name="clinicStaff"]:checked')]
+      .map((checkbox) => checkbox.value);
     state.clinicTemplates.push({
       id: uid("clinic"),
       type: document.querySelector("#clinicType").value,
@@ -980,7 +1129,7 @@ function bindEvents() {
       session: document.querySelector("#clinicSession").value,
       required: Number(document.querySelector("#clinicRequired").value || 0),
       includeLungConsultants: document.querySelector("#clinicAutoLung").checked,
-      staffIds: []
+      staffIds
     });
     saveState();
     render();
@@ -1004,19 +1153,16 @@ function bindEvents() {
         return;
       }
       state.people = state.people.filter((person) => person.id !== personId);
-      state.leave = state.leave.filter((leave) => leave.personId !== personId);
-      state.settings.wardOrder = state.settings.wardOrder.filter((id) => id !== personId);
-      Object.entries(state.wardOverrides).forEach(([date, id]) => {
-        if (id === personId) {
-          delete state.wardOverrides[date];
-        }
-      });
-      state.clinicTemplates = state.clinicTemplates.map((clinic) => ({
-        ...clinic,
-        staffIds: (clinic.staffIds || []).filter((id) => id !== personId)
-      }));
+      removePersonFromAssignments(personId);
       saveState();
       render();
+    });
+  });
+
+  document.querySelectorAll("[data-person-field]").forEach((control) => {
+    control.addEventListener("change", () => {
+      const [personId, field] = control.dataset.personField.split(":");
+      updatePerson(personId, field, control.value);
     });
   });
 

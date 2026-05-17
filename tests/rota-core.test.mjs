@@ -21,6 +21,22 @@ const state = normalizeState(clone(DEFAULT_STATE));
 
 assert.equal(state.people.find((person) => person.id === "igor").name, "Igor Randulfe");
 assert.equal(state.people.find((person) => person.id === "maria").name, "Maria Michaelidou");
+const editedPeopleState = normalizeState({
+  ...clone(DEFAULT_STATE),
+  people: clone(DEFAULT_STATE.people).map((person) => (
+    person.id === "junior-fellow"
+      ? { ...person, name: "Kira Hall", role: "Junior fellow" }
+      : person
+  ))
+});
+assert.equal(editedPeopleState.people.find((person) => person.id === "junior-fellow").name, "Kira Hall");
+const migratedNameState = normalizeState({
+  ...clone(DEFAULT_STATE),
+  people: clone(DEFAULT_STATE.people).map((person) => (
+    person.id === "igor" ? { ...person, name: "Igor Randolphe" } : person
+  ))
+});
+assert.equal(migratedNameState.people.find((person) => person.id === "igor").name, "Igor Randulfe");
 assert.equal(state.settings.rotaStart, "2026-05-04");
 assert.equal(getWardPersonId(state, "2026-05-04"), null);
 assert.equal(getWardCoverage(state, "2026-05-04").required, 0);
