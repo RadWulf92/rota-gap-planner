@@ -26,10 +26,18 @@ import {
 
 const STORAGE_KEY = "rota-gap-planner-state-v1";
 const BANK_HOLIDAY_REFRESH_MS = 24 * 60 * 60 * 1000;
+const VIEWS = [
+  { id: "diary", label: "Diary" },
+  { id: "leave", label: "Add leave" },
+  { id: "clinics", label: "Add clinics" },
+  { id: "personnel", label: "Add personnel" },
+  { id: "settings", label: "Settings" }
+];
 const app = document.querySelector("#app");
 
 let state = loadState();
 let currentWeek = startOfWeekISO(state.settings.rotaStart || todayISO());
+let currentView = getViewFromHash();
 
 function loadState() {
   try {
@@ -50,6 +58,11 @@ function saveState() {
     alert("The rota could not be saved in this browser. Export a backup before closing the page.");
     return false;
   }
+}
+
+function getViewFromHash() {
+  const requested = window.location.hash.replace("#", "");
+  return VIEWS.some((view) => view.id === requested) ? requested : "diary";
 }
 
 function uid(prefix) {
@@ -217,32 +230,57 @@ function renderSummary(gaps) {
   `;
 }
 
+function renderMainNav() {
+  return `
+    <nav class="main-nav" aria-label="Main sections">
+      ${VIEWS.map((view) => `
+        <a class="nav-link ${currentView === view.id ? "nav-link-active" : ""}" href="#${escapeHtml(view.id)}">
+          ${escapeHtml(view.label)}
+        </a>
+      `).join("")}
+    </nav>
+  `;
+}
+
+function renderWeekToolbar() {
+  if (currentView !== "diary") {
+    return "";
+  }
+
+  return `
+    <div class="toolbar" aria-label="Week navigation">
+      <button class="button button-light" id="prevWeek" type="button">Previous</button>
+      <label class="compact-field">
+        <span>Week starting</span>
+        <input type="date" id="weekPicker" value="${escapeHtml(currentWeek)}">
+      </label>
+      <button class="button button-light" id="todayWeek" type="button">Today</button>
+      <button class="button button-light" id="nextWeek" type="button">Next</button>
+      <label class="compact-field">
+        <span>Check</span>
+        <select id="viewWeeks">
+          ${[1, 3, 6, 12].map((weeks) => `
+            <option value="${weeks}" ${Number(state.settings.viewWeeks) === weeks ? "selected" : ""}>
+              ${weeks} week${weeks === 1 ? "" : "s"}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+    </div>
+  `;
+}
+
 function renderToolbar() {
   return `
     <header class="topbar">
-      <div class="topbar-brand">
-        <p class="eyebrow">Thoracic rota</p>
-        <h1>Rota gap planner</h1>
+      <div class="topbar-main">
+        <div class="topbar-brand">
+          <p class="eyebrow">Thoracic rota</p>
+          <h1>Rota gap planner</h1>
+        </div>
+        ${renderMainNav()}
       </div>
-      <div class="toolbar" aria-label="Week navigation">
-        <button class="button button-light" id="prevWeek" type="button">Previous</button>
-        <label class="compact-field">
-          <span>Week starting</span>
-          <input type="date" id="weekPicker" value="${escapeHtml(currentWeek)}">
-        </label>
-        <button class="button button-light" id="todayWeek" type="button">Today</button>
-        <button class="button button-light" id="nextWeek" type="button">Next</button>
-        <label class="compact-field">
-          <span>Check</span>
-          <select id="viewWeeks">
-            ${[1, 3, 6, 12].map((weeks) => `
-              <option value="${weeks}" ${Number(state.settings.viewWeeks) === weeks ? "selected" : ""}>
-                ${weeks} week${weeks === 1 ? "" : "s"}
-              </option>
-            `).join("")}
-          </select>
-        </label>
-      </div>
+      ${renderWeekToolbar()}
     </header>
   `;
 }
@@ -467,36 +505,94 @@ function renderReliabilityPanel(panelClass = "panel") {
   `;
 }
 
-function renderMainContent(gaps) {
+function renderWeekBoard() {
   const week = buildWeek(state, currentWeek);
 
   return `
-    <main class="content">
+    <section class="board-shell diary-board">
+      <div class="board-heading">
+        <div>
+          <p class="eyebrow">Diary</p>
+          <h2>${escapeHtml(formatRange(currentWeek, addDays(currentWeek, 4)))}</h2>
+        </div>
+        <span class="board-chip">${escapeHtml(state.settings.wardName)}</span>
+      </div>
+      <div class="week-board" aria-label="Current week rota">
+        ${week.map((day) => renderDayColumn(day)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderPageHeader(title, detail = "") {
+  return `
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">Rota management</p>
+        <h2>${escapeHtml(title)}</h2>
+        ${detail ? `<span>${escapeHtml(detail)}</span>` : ""}
+      </div>
+      <a class="button button-light link-button" href="#diary">Back to diary</a>
+    </div>
+  `;
+}
+
+function renderDiaryPage(gaps) {
+  return `
+    <main class="content diary-page">
+      ${renderWeekBoard()}
+      <section class="diary-actions" aria-label="Diary actions">
+        <a class="button button-primary link-button" href="#leave">Add leave</a>
+        <a class="button button-light link-button" href="#clinics">Add clinics</a>
+        <a class="button button-light link-button" href="#personnel">Add personnel</a>
+      </section>
       ${renderSummary(gaps)}
-      <section class="workbench" aria-label="Rota management">
-        ${renderLeavePanel("panel action-panel")}
-        ${renderPeoplePanel("panel action-panel action-panel-team")}
-        ${renderClinicTemplatesPanel("panel action-panel action-panel-clinics")}
-      </section>
-      <section class="board-shell">
-        <div class="board-heading">
-          <div>
-            <p class="eyebrow">Week board</p>
-            <h2>${escapeHtml(formatRange(currentWeek, addDays(currentWeek, 4)))}</h2>
-          </div>
-          <span class="board-chip">${escapeHtml(state.settings.wardName)}</span>
-        </div>
-        <div class="week-board" aria-label="Current week rota">
-          ${week.map((day) => renderDayColumn(day)).join("")}
-        </div>
-      </section>
-      <section class="support-grid">
-        ${renderGapsPanel(gaps)}
-        ${renderSettingsPanel("panel panel-wide")}
-        ${renderReliabilityPanel("panel panel-wide")}
-      </section>
+      ${renderGapsPanel(gaps)}
     </main>
   `;
+}
+
+function renderMainContent(gaps) {
+  if (currentView === "leave") {
+    return `
+      <main class="content page-shell">
+        ${renderPageHeader("Add leave", "Record annual leave or other absence and the diary will flag gaps.")}
+        ${renderLeavePanel("panel page-panel")}
+      </main>
+    `;
+  }
+
+  if (currentView === "clinics") {
+    return `
+      <main class="content page-shell">
+        ${renderPageHeader("Add clinics", "Create or edit recurring clinics, meetings, minimum cover, and named staff.")}
+        ${renderClinicTemplatesPanel("panel page-panel")}
+      </main>
+    `;
+  }
+
+  if (currentView === "personnel") {
+    return `
+      <main class="content page-shell">
+        ${renderPageHeader("Add personnel", "Add, remove, or update consultants, SpRs, fellows, and ACPs.")}
+        ${renderPeoplePanel("panel page-panel")}
+      </main>
+    `;
+  }
+
+  if (currentView === "settings") {
+    return `
+      <main class="content page-shell">
+        ${renderPageHeader("Settings", "Ward rotation, bank holidays, and backup tools.")}
+        <section class="settings-grid">
+          ${renderSettingsPanel("panel page-panel")}
+          ${renderReliabilityPanel("panel page-panel")}
+        </section>
+      </main>
+    `;
+  }
+
+  return renderDiaryPage(gaps);
 }
 
 function renderDayColumn(day) {
@@ -983,6 +1079,7 @@ function updatePerson(personId, field, value) {
 }
 
 function render() {
+  currentView = getViewFromHash();
   const gaps = findGaps(state, currentWeek, Number(state.settings.viewWeeks || 6));
 
   app.innerHTML = `
@@ -995,34 +1092,41 @@ function render() {
   bindEvents();
 }
 
+function bindIfExists(selector, eventName, handler) {
+  const element = document.querySelector(selector);
+  if (element) {
+    element.addEventListener(eventName, handler);
+  }
+}
+
 function bindEvents() {
-  document.querySelector("#prevWeek").addEventListener("click", () => {
+  bindIfExists("#prevWeek", "click", () => {
     currentWeek = addDays(currentWeek, -7);
     render();
   });
 
-  document.querySelector("#nextWeek").addEventListener("click", () => {
+  bindIfExists("#nextWeek", "click", () => {
     currentWeek = addDays(currentWeek, 7);
     render();
   });
 
-  document.querySelector("#todayWeek").addEventListener("click", () => {
+  bindIfExists("#todayWeek", "click", () => {
     currentWeek = startOfWeekISO(todayISO());
     render();
   });
 
-  document.querySelector("#weekPicker").addEventListener("change", (event) => {
+  bindIfExists("#weekPicker", "change", (event) => {
     currentWeek = startOfWeekISO(event.target.value);
     render();
   });
 
-  document.querySelector("#viewWeeks").addEventListener("change", (event) => {
+  bindIfExists("#viewWeeks", "change", (event) => {
     state.settings.viewWeeks = Number(event.target.value);
     saveState();
     render();
   });
 
-  document.querySelector("#leaveForm").addEventListener("submit", (event) => {
+  bindIfExists("#leaveForm", "submit", (event) => {
     event.preventDefault();
     const personId = document.querySelector("#leavePerson").value;
     const start = document.querySelector("#leaveStart").value;
@@ -1049,7 +1153,7 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector("#personForm").addEventListener("submit", (event) => {
+  bindIfExists("#personForm", "submit", (event) => {
     event.preventDefault();
     const name = document.querySelector("#personName").value.trim();
     const role = document.querySelector("#personRole").value.trim();
@@ -1078,19 +1182,19 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector("#rotaStart").addEventListener("change", (event) => {
+  bindIfExists("#rotaStart", "change", (event) => {
     state.settings.rotaStart = startOfWeekISO(event.target.value);
     saveState();
     render();
   });
 
-  document.querySelector("#wardName").addEventListener("change", (event) => {
+  bindIfExists("#wardName", "change", (event) => {
     state.settings.wardName = event.target.value.trim() || "Ward 12";
     saveState();
     render();
   });
 
-  document.querySelector("#resetState").addEventListener("click", () => {
+  bindIfExists("#resetState", "click", () => {
     if (!confirm("Reset the rota, people, clinics, leave, and cover overrides to the starter setup?")) {
       return;
     }
@@ -1100,15 +1204,15 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector("#refreshBankHolidays").addEventListener("click", () => {
+  bindIfExists("#refreshBankHolidays", "click", () => {
     refreshBankHolidays({ force: true });
   });
 
-  document.querySelector("#exportBackup").addEventListener("click", () => {
+  bindIfExists("#exportBackup", "click", () => {
     exportBackup();
   });
 
-  document.querySelector("#importBackup").addEventListener("change", (event) => {
+  bindIfExists("#importBackup", "change", (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (file) {
@@ -1116,7 +1220,7 @@ function bindEvents() {
     }
   });
 
-  document.querySelector("#clinicForm").addEventListener("submit", (event) => {
+  bindIfExists("#clinicForm", "submit", (event) => {
     event.preventDefault();
     const staffIds = [...document.querySelectorAll('input[name="clinicStaff"]:checked')]
       .map((checkbox) => checkbox.value);
@@ -1250,6 +1354,8 @@ function bindEvents() {
     });
   });
 }
+
+window.addEventListener("hashchange", render);
 
 render();
 refreshBankHolidays();
